@@ -7,7 +7,69 @@ import traceback
 
 import paramiko
 
+def transfer(): 
+    try:
+        t = paramiko.Transport((hostname, port))
+        t.connect(username=username, password=password, hostkey=hostkey)
+        sftp = paramiko.SFTPClient.from_transport(t)
 
+        # Prompt for type of transfer
+        mode = ''
+        while mode != 'r' and mode != 'R' and mode != 's' and mode != 'S':
+            mode = raw_input('send or retrieve (s/r):')
+        
+	    # Send file to server
+        if mode == 's' or mode == 'S':
+            send(sftp)
+
+        # Retrieve file from server
+        if mode == 'r' or mode == 'R':
+            retrieve(sftp)
+            
+        t.close()
+
+    except Exception, e:
+        print '*** Caught exception: %s: %s' % (e.__class__, e)
+        traceback.print_exc()
+        try:
+            t.close()
+        except:
+            pass
+            
+def send(sftp):
+    try:
+        files = [f for f in os.listdir('.') if os.path.isfile(f) and f[0] != '.']
+        for names in files:
+            print '%s' % names
+
+        file = raw_input('filename: ')
+
+        data = open(file, 'rb').read()
+        sftp.open(file, 'wb').write(data)
+        
+    except Exception, e:
+        print '*** Caught exception: %s: %s' % (e.__class__, e)
+        traceback.print_exc()
+        try:
+            t.close()
+        except:
+            pass
+            
+def retrieve(sftp):
+    try:
+        files = [f for f in sftp.listdir(path='.')]
+        for names in files:
+            print '%s' % names
+
+        file = raw_input('filename: ')
+        
+        data = sftp.open(file, 'rb').read()
+        open(file, 'wb').write(data)
+        
+    except Exception, e:
+        print '*** Caught exception: %s: %s' % (e.__class__, e)
+        traceback.print_exc()
+        
 # setup logging
 paramiko.util.log_to_file('demo_sftp.log')
 
@@ -27,7 +89,6 @@ if hostname.find(':') >= 0:
     hostname, portstr = hostname.split(':')
     port = int(portstr)
 
-
 # get username
 if username == '':
     default_username = getpass.getuser()
@@ -35,7 +96,6 @@ if username == '':
     if len(username) == 0:
         username = default_username
 password = getpass.getpass('Password for %s@%s: ' % (username, hostname))
-
 
 # get host key, if we know one
 hostkeytype = None
@@ -58,19 +118,7 @@ if host_keys.has_key(hostname):
 
 # now, connect and use paramiko Transport to negotiate SSH2 across the connection
 try:
-    t = paramiko.Transport((hostname, port))
-    t.connect(username=username, password=password, hostkey=hostkey)
-    sftp = paramiko.SFTPClient.from_transport(t)
-
-	# Send photo.jpg to server
-	data = open('photo.jpg', 'rb').read()
-    sftp.open('photo.jpg', 'wb').write(data)
-	
-    # Retrieve photo.jpg from server and name it photo-copy.jpg
-    data = sftp.open('photo.jpg', 'rb').read()
-    open('photo-copy.jpg', 'wb').write(data)
-
-    t.close()
+	transfer()
 
 except Exception, e:
     print '*** Caught exception: %s: %s' % (e.__class__, e)
