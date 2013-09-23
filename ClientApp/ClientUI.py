@@ -7,9 +7,9 @@ from Tkinter import *
 import ttk
 from ClientCallBacks import CallBacks
 from ClientUIObjects import StatusBar
+from ClientObjects import Connection
 
 class UI(object):
-
     '''
     Constructor
     '''
@@ -54,7 +54,7 @@ class UI(object):
 
         filemenu = Menu(menu)
         menu.add_cascade(label="File", menu=filemenu)
-        filemenu.add_command(label="Connect...", command=CallBacks.connectCallBack)
+        filemenu.add_command(label="Connect...", command= lambda:CallBacks.connectCallBack(root))
         filemenu.add_command(label="Open...", command=CallBacks.openCallBack)
         filemenu.add_command(label="Save...", command=CallBacks.saveCallBack)
         filemenu.add_separator()
@@ -63,7 +63,7 @@ class UI(object):
         helpmenu = Menu(menu)
         menu.add_cascade(label="Help", menu=helpmenu)
         helpmenu.add_command(label="About...", command=CallBacks.aboutCallBack)
-
+        
 class UIConstants():
 
     # Minimum window size length

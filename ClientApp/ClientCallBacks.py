@@ -7,15 +7,16 @@ Client UI CallBack functions
 from Tkinter import *
 from tkFileDialog import askopenfilename
 from tkFileDialog import asksaveasfile
+from ClientUIObjects import ConnectDialog
 import tkMessageBox
 import sys
 
 class CallBacks():
 
     @staticmethod
-    def connectCallBack():
-        print "called the connect callback!"
-
+    def connectCallBack(root):
+        window = ConnectDialog(root)
+        
     @staticmethod
     def openCallBack():
         
