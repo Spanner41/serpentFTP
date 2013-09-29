@@ -7,7 +7,8 @@ from Tkinter import *
 import ttk
 from ClientCallBacks import CallBacks
 from ClientUIObjects import StatusBar
-from ClientObjects import Connection
+from ClientUIObjects import TreeView
+from ClientUIObjects import ConnectDialog
 
 class UI(object):
     '''
@@ -21,6 +22,9 @@ class UI(object):
 
         # Set window minimum size
         root.minsize(UIConstants.MINIMUM_SIZE_LENGTH, UIConstants.MINIMUM_SIZE_WIDTH)
+        
+        # Set default size
+        root.geometry("1043x800")
 
         # Give title to application
         root.wm_title(UIConstants.STORAGE_SERVICE_TITLE)
@@ -28,8 +32,9 @@ class UI(object):
         # Give an icon to the application
         root.wm_iconbitmap('folder.ico')
 
-        self.createDefaultMenu(root)
 
+        self.createDefaultMenu(root)
+        
         # Create status bar and set current status
         status = StatusBar(root)
         status.pack(side=BOTTOM, fill=X)
@@ -38,20 +43,24 @@ class UI(object):
         # Create a progress bar for downloads
         downloadBar = ttk.Progressbar(
             root, orient="horizontal",
-            length=UIConstants.DOWNLOAD_BAR_LENGTH, mode="determinate",
+            mode="determinate"
             )
-        downloadBar.pack(side=BOTTOM)
-
+        downloadBar.pack(side=BOTTOM, fill=X)
         # Note to update progress bar call
         # downloadBar.step({RANGE1-100})
+        
+        window = ConnectDialog(root)
+        
+        treeClient = TreeView(root)
+        treeServer = TreeView(root, "Server")
 
         # Create top window contents
         root.mainloop()
+        #treeClient.mainloop()
 
     def createDefaultMenu(self, root):
         menu = Menu(root)
         root.config(menu=menu)
-
         filemenu = Menu(menu)
         menu.add_cascade(label="File", menu=filemenu)
         filemenu.add_command(label="Connect...", command= lambda:CallBacks.connectCallBack(root))
@@ -67,13 +76,10 @@ class UI(object):
 class UIConstants():
 
     # Minimum window size length
-    MINIMUM_SIZE_LENGTH = 300
+    MINIMUM_SIZE_LENGTH = 100
 
     # Minimum window size width
-    MINIMUM_SIZE_WIDTH = 300
+    MINIMUM_SIZE_WIDTH = 100
 
     # Storage Service Name
     STORAGE_SERVICE_TITLE = "Cool Storage Service"
-
-    # Download bar length
-    DOWNLOAD_BAR_LENGTH = 300

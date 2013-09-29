@@ -21,7 +21,7 @@ class CallBacks():
     def openCallBack():
         
         # Path to remote host
-        pathToRemoteHost = "~/Desktop/"
+        pathToRemoteHost = "C:/"
 
         fileName = askopenfilename(initialdir=pathToRemoteHost,
                                    filetypes=(("Image files", "*.jpg;*.png;*.bmp"),
