@@ -24,6 +24,14 @@ class Connection:
         self.hostname = hostname
         self.username = username
         self.password = password
+
+        self.bDownFlag = False
+        self.mouseFocusFlag = False
+        self.bUpFlag = False
+        
+        self.bDownFlagServer = False
+        self.mouseFocusFlagServer = False
+        self.bUpFlagServer = False
         
     def setConnectionParameters(self, hostname=None, username=None, password=None):
         self.hostname = hostname
@@ -68,30 +76,33 @@ class Connection:
             self.transport.connect(username=self.username, password=self.password)
           
     #send a file of name "filename"
-    def send(self, filename):
-        
+    def put(self, filepath, localpath):
+
         sftp = self.getSFTP()
-        
+
         try:
-            data = open(file, 'rb').read()
-            sftp.open(file, 'wb').write(data)
+            sftp.put(filepath, localpath)
+            #data = open(filename, 'rb').read()
+            #sftp.open(filename, 'wb').write(data)
 
         except Exception, e:
             print '*** Caught exception: %s: %s' % (e.__class__, e)
             traceback.print_exc()
-            try:
-                self.close()
-            except:
-                pass
+            #try:
+                #self.close()
+            #except:
+                #pass
                 
     #retrieve a file of name filename
-    def retrieve(self, filename):
-        
+    def get(self, filepath, localpath):
+
         sftp = self.getSFTP()
-        
+
+        sftp.get(filepath, localpath)
         try:
-            data = sftp.open(file, 'rb').read()
-            open(file, 'wb').write(data)
+            sftp.get(filepath, localpath)
+            #data = sftp.open(filename, 'rb').read()
+            #open(filename, 'wb').write(data)
             
         except Exception, e:
             print '*** Caught exception: %s: %s' % (e.__class__, e)

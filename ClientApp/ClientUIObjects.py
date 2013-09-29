@@ -72,7 +72,6 @@ class ConnectDialog(Toplevel):
         return self.hostEntry # initial focus
 
     def buttonbox(self):
-
         box = Frame(self)
 
         w = Button(box, text="Verify", width=10, command=self.ok, default=ACTIVE)
@@ -88,7 +87,6 @@ class ConnectDialog(Toplevel):
     #
     # standard button semantics
     def ok(self, event=None):
-
         if not self.validate():
             self.initial_focus.focus_set() # put focus back
             return
@@ -101,11 +99,9 @@ class ConnectDialog(Toplevel):
         self.cancel()
 
     def cancel(self, event=None):
-
         # put focus back to the master window
         self.master.focus_set()
         self.destroy()
-
 
     def validate(self):
 
@@ -124,12 +120,20 @@ class ConnectDialog(Toplevel):
             return 0
 
     def apply(self):
-
         pass # override
 
 class TreeView(Frame):
 
     def __init__(self, master, connectType=None):
+        self.listener = Singleton(Listener)
+        self.bDownFlag = False
+        self.mouseFocusFlag = False
+        self.bUpFlag = False
+        
+        self.bDownFlagServer = False
+        self.mouseFocusFlagServer = False
+        self.bUpFlagServer = False
+
         self.connectType = connectType
         if self.connectType == "Server":
             self.serverConnection = Singleton(Connection)
@@ -154,12 +158,11 @@ class TreeView(Frame):
         tree.bind('<<TreeviewOpen>>', self.update_tree)
         tree.bind('<Double-Button-1>', self.change_dir)
         tree.bind("<ButtonPress-1>", self.bDown)
-        tree.bind("<ButtonRelease-1>", self.bUp, add='+')
+        tree.bind("<ButtonRelease-1>", self.bUp)
         tree.bind("<Enter>", self.mouseFocus)
         #tree.bind("<Shift-ButtonPress-1>",bDown_Shift, add='+')
         #tree.bind("<Shift-ButtonRelease-1>",bUp_Shift, add='+')
         # see http://effbot.org/tkinterbook/tkinter-events-and-bindings.htm for bindings
-
 
         # Arrange the tree and its scrollbars in the toplevel
         #hsb.pack(side=BOTTOM, fill=X) #TODO
@@ -173,7 +176,7 @@ class TreeView(Frame):
 
         path = tree.set(node, "fullpath")
         tree.delete(*tree.get_children(node))
-    
+
         parent = tree.parent(node)
         special_dirs = [] if parent else glob.glob('.') + glob.glob('..')
         if self.connectType == None:
@@ -211,8 +214,25 @@ class TreeView(Frame):
                     size = os.stat(p).st_size
                     tree.set(id, "size", "%d bytes" % size)
     
-    def populate_roots(self, tree):
+    def treePut(self):
+        self.serverConnection = Singleton(Connection)
+        clientPath = self.listener.getClientPath()
+        if self.serverConnection.getCwd() != "/":
+            serverPath = self.serverConnection.getCwd() + '/' + os.path.basename(self.listener.getClientPath())
+        else:
+            serverPath = self.serverConnection.getCwd() + os.path.basename(self.listener.getClientPath())
+        self.serverConnection.put(clientPath, serverPath)
 
+    def treeGet(self):
+        self.serverConnection = Singleton(Connection)
+        serverPath = self.listener.getServerPath()
+        if os.getcwd() != "C:\\":
+            clientPath = os.getcwd() + '\\' + os.path.basename(self.listener.getServerPath())
+        else:
+            clientPath = os.getcwd() + os.path.basename(self.listener.getServerPath())
+        self.serverConnection.get(serverPath, clientPath)
+
+    def populate_roots(self, tree):
         if self.connectType == None:
             dir = os.path.abspath('.').replace('\\', '/')
             node = tree.insert('', 'end', text=dir, values=[dir, "directory"])
@@ -226,17 +246,37 @@ class TreeView(Frame):
         self.populate_tree(tree, tree.focus())
         
     def bDown(self, event):
-        #TODO
-        print "bdown"
+        if self.connectType == None:
+            self.listener.setbDownFlag(True)
+        elif self.connectType == "Server":
+            self.listener.setbDownFlagServer(True)
 
     def mouseFocus(self, event):
-        #TODO
-        print "I have focus"
-        pass
+        tree = event.widget
+        if self.connectType == None:
+            self.listener.setmouseFocusFlag(True)
+            action = self.listener.updateEvents()
+        elif self.connectType == "Server":
+            self.listener.setmouseFocusFlagServer(True)
+            action = self.listener.updateEvents()
+        
+        if (action == 4):
+            self.treeGet()
+            self.populate_tree(tree, tree.focus())
+        elif (action == 5):
+            self.treePut()
+            self.populate_tree(tree, tree.focus())
 
     def bUp(self, event):
-        #TODO
-        print "bUp"
+        tree = event.widget
+        if self.connectType == None:
+            self.listener.setbUpFlag(True)
+            path = tree.set(tree.focus(), "fullpath")
+            self.listener.setClientPath(path)
+        elif self.connectType == "Server":
+            self.listener.setbUpFlag(True)
+            path = tree.set(tree.focus(), "fullpath")
+            self.listener.setServerPath(path)
 
     def change_dir(self, event):
         tree = event.widget
@@ -262,3 +302,85 @@ class TreeView(Frame):
         else:
             sbar.grid()
         sbar.set(first, last)
+
+class Listener(object):
+
+    _instance = None
+
+    def __init__(self):
+        self.bDownFlag = False
+        self.mouseFocusFlag = False
+        self.bUpFlag = False
+        
+        self.bDownFlagServer = False
+        self.mouseFocusFlagServer = False
+        self.bUpFlagServer = False
+        
+        self.clientPath = None
+        self.serverPath = None
+    
+    def getClientPath(self):
+        return self.clientPath
+    
+    def getServerPath(self):
+        return self.serverPath
+
+    def setClientPath(self, value):
+        self.clientPath = value
+        
+    def setServerPath(self, value):
+        self.serverPath = value
+
+    def setbDownFlag(self, value):
+        self.bDownFlag = value
+
+    def setmouseFocusFlag(self, value):
+        self.mouseFocusFlag = value
+        self.mouseFocusFlagServer = not value
+
+    def setbUpFlag(self, value):
+        self.bUpFlag = value
+
+    def setbDownFlagServer(self, value):
+        self.bDownFlagServer = value
+
+    def setmouseFocusFlagServer(self, value):
+        self.mouseFocusFlagServer = value
+        self.mouseFocusFlag = not value
+
+    def setbUpFlagServer(self, value):
+        self.bUpFlagServer = value
+
+    def updateEvents(self):
+        if ((self.bUpFlag == True) and (self.mouseFocusFlag == True)):
+            #"Server To Client"
+            self.bDownFlag = False
+            self.mouseFocusFlag = False
+            self.bUpFlag = False
+        
+            self.bDownFlagServer = False
+            self.mouseFocusFlagServer = False
+            self.bUpFlagServer = False
+            return 4
+        
+        if ((self.bUpFlag == True) and (self.mouseFocusFlagServer == True)):
+            #"Client To Server"
+            self.bDownFlag = False
+            self.mouseFocusFlag = False
+            self.bUpFlag = False
+        
+            self.bDownFlagServer = False
+            self.mouseFocusFlagServer = False
+            self.bUpFlagServer = False
+            return 5
+        
+        self.bDownFlag = False
+        self.mouseFocusFlag = False
+        self.bUpFlag = False
+        
+        self.bDownFlagServer = False
+        self.mouseFocusFlagServer = False
+        self.bUpFlagServer = False
+        return 0
+
+    

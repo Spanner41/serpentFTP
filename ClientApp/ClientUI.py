@@ -50,7 +50,7 @@ class UI(object):
         # downloadBar.step({RANGE1-100})
         
         window = ConnectDialog(root)
-        
+
         treeClient = TreeView(root)
         treeServer = TreeView(root, "Server")
 
