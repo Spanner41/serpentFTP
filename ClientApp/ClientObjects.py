@@ -39,7 +39,6 @@ class Connection:
         self.password = password
 
     def getTransport(self):
-        
         if self.transport is None:
             self.transport = paramiko.Transport((self.hostname, 22))
         return self.transport
@@ -75,38 +74,23 @@ class Connection:
         if self.transport is not None:
             self.transport.connect(username=self.username, password=self.password)
           
+    #normalize a path
+    def normalize(self, path):
+        sftp = self.getSFTP()
+        return sftp.normalize(path)
+        
     #send a file of name "filename"
     def put(self, filepath, localpath):
 
         sftp = self.getSFTP()
-
-        try:
-            sftp.put(filepath, localpath)
-            #data = open(filename, 'rb').read()
-            #sftp.open(filename, 'wb').write(data)
-
-        except Exception, e:
-            print '*** Caught exception: %s: %s' % (e.__class__, e)
-            traceback.print_exc()
-            #try:
-                #self.close()
-            #except:
-                #pass
+        sftp.put(filepath, localpath)
                 
     #retrieve a file of name filename
-    def get(self, filepath, localpath):
+    def get(self, remotepath, localpath):
 
         sftp = self.getSFTP()
 
-        sftp.get(filepath, localpath)
-        try:
-            sftp.get(filepath, localpath)
-            #data = sftp.open(filename, 'rb').read()
-            #open(filename, 'wb').write(data)
-            
-        except Exception, e:
-            print '*** Caught exception: %s: %s' % (e.__class__, e)
-            traceback.print_exc()
+        sftp.get(remotepath, localpath)
             
     def close(self):
         self.transfer.close()
