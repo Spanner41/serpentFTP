@@ -10,6 +10,7 @@ import string
 import traceback
 import paramiko
 import os
+import time
 
 class Client:
     #used to connect to server
@@ -111,9 +112,10 @@ class Client:
         self.transport.close()
         
     #register user with server
-    def register(self, accountName, accountPass):
-        self.transport.send('register::' + accountName + '::' + accountPass + '::')
-        
+    def register(self, hostname, accountName, accountPass):
+        self.transport.send('register::' + hostname + "::" + accountName + '::' + accountPass)
+        time.sleep(1)
+
     #send file list
     def sendFileList(self):
         self.transport.send('file list::' + str(len(self.storedFiles)) + '::')
@@ -128,22 +130,18 @@ class Client:
     def put(self, localpath, remotepath, callback=None):
         file_size = os.stat(localpath).st_size
         
-        self.transport.send('putting::' + remotepath + '::' + file_size + '::')
-        file = open(localpath, 'rb')
-        size = 0
-        #send the bytes of the file
-        bytes = file.read(1024)
-        
-        while (len(bytes) != 0):
-            self.transport.send(bytes)
-            size += len(bytes)
-            if(callback is not None):
-                callback(size, file_size)
-            bytes = file.read(1024)
-        file.close()
-    
+        self.transport.send('putting::' + remotepath + '::' + str(file_size))
+
+
+        readByte = open(localpath, "rb")
+        data = readByte.read()
+        readByte.close()
+
+        self.transport.send(data)
+
     def get(self, remotepath, localpath):
-        self.transport.send('getting::' + remotepath + '::')
+        self.transport.send('getting::' + remotepath)
+
         file = open(localpath, 'wb')
         #receive the file
         bytes = self.transport.recv(1024)
@@ -151,6 +149,9 @@ class Client:
         while(len(bytes) != 0):
             file.write(bytes)
             bytes = self.transport.recv(1024)
+            if (len(bytes) < 1024):
+                file.write(bytes)
+                break
         file.close()
         
     def listen(self):
@@ -173,9 +174,9 @@ class Client:
                 if(commands[0] == 'file list' and len(commands) > 1 and len(commands) > commands[1] + 1):
                     commands.pop(0)
                     self.storedFiles = []
-                    for i in range(int(command[0])):
+                    for i in range(int(commands[0])):
                         commands.pop(0)
-                        self.storedFiles.append(command[0])
+                        self.storedFiles.append(commands[0])
                         
                 if(commands[0] == 'getting'):
                     if(len(commands) > 1):
@@ -208,11 +209,17 @@ class Client:
                                 file.write(buffer)
                         buffer = self.transport.recv(file_size - size)
                         file.write(buffer)
-                        
+
 client = Client()
 client.loadConfig()
 client.promptForConfig()
 client.saveConfig()
 client.connect()
-client.register(client.accountName, client.accountPass)
-client.listen()
+client.register(client.hostname, client.accountName, client.accountPass)
+client.put('folder.ico', 'folder1.ico')
+time.sleep(2)
+client.get('folder1.ico', 'folder2.ico')
+#time.sleep(5)
+#client.get('folder.ico', 'folder.ico')
+#client.disconnect()
+#client.listen()
