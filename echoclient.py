@@ -5,6 +5,7 @@ def listen(client):
     while 1:
         try:
             client.send(raw_input())
+            
         except Exception, e:
             exit()
 
@@ -21,7 +22,7 @@ sendthread.start()
 while threading.activeCount() > 1:
     try:
         data = s.recv(size)
-        print(data)
+        print("received: " + data)
     except socket.timeout:
         pass
     except:

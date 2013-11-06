@@ -24,7 +24,7 @@ sendthread.start()
 while threading.activeCount():
     try:
         data = client.recv(size)
-        print(data)
+        print("received: " + data)
     except socket.timeout:
         pass
     except:
