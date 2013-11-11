@@ -36,6 +36,14 @@ class Tracker:
                 if connection.getRemainingSize() != 0:
                     return connection
             return None
+        
+    def getConnection(self, hostname):
+        if (self.connectionList == None):
+            return None
+        
+        for connection in self.connectionList:
+            if connection.hostname == hostname:
+                return connection
 
 class Connection:
     
@@ -66,6 +74,34 @@ class Connection:
                 return fileName
             else:
                 return None
+            
+    def loadFileList(self):
+        if(os.path.isfile(self.username + 'files.txt')):
+            config = open(self.username + 'files.txt', 'r')
+            
+            while 1:
+                lines = config.readlines(5)
+                if not lines:
+                    break
+                for line in lines:
+                    words = re.split(' |\n', line)
+                    
+                    if words[0] == 'storedFiles':
+                        for word in words[2:]:
+                            self.storedFiles.append(word)
+                            self.storedFiles = list(set(self.storedFiles))
+                            
+                    
+    def saveFileList(self):
+        config = open(self.username + 'files.txt', 'wb')
+        
+        if self.storedFiles is not []:
+            config.write('storedFiles ' + str(len(self.storedFiles)))
+            for name in self.storedFiles:
+                config.write(' ' + name)
+            config.write(os.linesep)
+
+        config.close()
 
     def getRemainingSize(self):
         return self.remainingSize
@@ -151,7 +187,7 @@ tracker = Singleton(Tracker)
 import socket
 
 hostname = '127.0.0.1'                 # Symbolic name meaning the local host
-port = 9000              # Arbitrary non-privileged port
+port = 50001                           # Arbitrary non-privileged port
 s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s1.bind((hostname, port))
 s1.listen(1)
@@ -170,7 +206,7 @@ while True:
 while True:
     data = connection.recv(1024)
     if not data: continue
-    parsedData = data.split('::');
+    parsedData = data.split('::')
 
     if parsedData[0] == "putting":
         
@@ -188,7 +224,6 @@ while True:
 
     elif parsedData[0] == "getting":
         server.get("/" + parsedData[1], parsedData[1])
-        file_size = os.stat(parsedData[1]).st_size
 
         readByte = open(parsedData[1], "rb")
         data = readByte.read()

@@ -23,7 +23,7 @@ class Client:
     accountPass = None
     
     homedir = None
-    storedFiles = []
+    storedFiles = ['folder.ico', 'echoserver.py']
     
     def loadConfig(self):
         if(os.path.isfile('config.txt')):
@@ -100,37 +100,45 @@ class Client:
             self.transport = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.transport.connect((self.hostname, self.port))
             
-            #self.transport = paramiko.Transport((self.hostname, 22))
-            #self.transport.connect(username=self.servername, password=self.password)
-            #self.sftp = paramiko.SFTPClient.from_transport(self.transport)
         except Exception, e:
             print '*** Caught exception: %s: %s' % (e.__class__, e)
             traceback.print_exc()
             
     def disconnect(self):
-        self.transport.send('disconnecting::')
         self.transport.close()
         
     #register user with server
     def register(self, hostname, accountName, accountPass):
-        self.transport.send('register::' + hostname + "::" + accountName + '::' + accountPass)
+        self.transport.send('register::' + hostname + "::" + accountName + '::' + accountPass )
         time.sleep(1)
 
     #send file list
     def sendFileList(self):
-        self.transport.send('file list::' + str(len(self.storedFiles)) + '::')
-        for name in self.storedFiles:
-            self.transport.send('::' + name)
+        buffer = 'file list::' + str(len(self.storedFiles)) + '::[' + self.storedFiles[0]
+        
+        for name in self.storedFiles[1:]:
+            buffer += ',' + name
+        
+        self.transport.send(buffer + ']')
     
     #request file list
     def getFileList(self):
         self.transport.send('send file list::')
+        
+        data = self.transport.recv(1024)
+        while len(data) != 0:
+            file.write(data)
+            data = connection.recv(1024)
+            if (len(data) < 1024):
+                file.write(data)
+                break
+        file.close()
 
     #callback function of type function(int, int)
     def put(self, localpath, remotepath, callback=None):
         file_size = os.stat(localpath).st_size
         
-        self.transport.send('putting::' + remotepath + '::' + str(file_size))
+        self.transport.send('putting::' + remotepath)
 
 
         readByte = open(localpath, "rb")
@@ -143,16 +151,19 @@ class Client:
         self.transport.send('getting::' + remotepath)
 
         file = open(localpath, 'wb')
-        #receive the file
-        bytes = self.transport.recv(1024)
         
-        while(len(bytes) != 0):
-            file.write(bytes)
-            bytes = self.transport.recv(1024)
-            if (len(bytes) < 1024):
-                file.write(bytes)
+        #receive the file
+        data = self.transport.recv(1024)
+
+        while len(data) != 0:
+            file.write(data)
+            data = self.transport.recv(1024)
+            if (len(data) < 1024):
+                file.write(data)
                 break
         file.close()
+        
+        #self.storedFiles.append(remotepath)
         
     def listen(self):
         commands = []
@@ -210,6 +221,7 @@ class Client:
                         buffer = self.transport.recv(file_size - size)
                         file.write(buffer)
 
+
 client = Client()
 client.loadConfig()
 client.promptForConfig()
@@ -221,5 +233,4 @@ time.sleep(2)
 client.get('folder1.ico', 'folder2.ico')
 #time.sleep(5)
 #client.get('folder.ico', 'folder.ico')
-#client.disconnect()
 #client.listen()
