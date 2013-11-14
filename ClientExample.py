@@ -24,6 +24,7 @@ class Client:
     
     homedir = None
     storedFiles = ['folder.ico', 'echoserver.py']
+    _instance = None
     
     def loadConfig(self):
         if(os.path.isfile('config.txt')):
@@ -110,7 +111,7 @@ class Client:
     #register user with server
     def register(self, hostname, accountName, accountPass):
         self.transport.send('register::' + hostname + "::" + accountName + '::' + accountPass )
-        time.sleep(1)
+        #time.sleep(1)
 
     #send file list
     def sendFileList(self):
@@ -123,23 +124,25 @@ class Client:
     
     #request file list
     def getFileList(self):
-        self.transport.send('send file list::')
-        
+        self.transport.send("sendfilelist::myfile.txt")
+        fileList = ""
+        fileListArray = []
         data = self.transport.recv(1024)
         while len(data) != 0:
-            file.write(data)
-            data = connection.recv(1024)
+            fileList = fileList + data
+            data = self.transport.recv(1024)
             if (len(data) < 1024):
-                file.write(data)
+                fileList = fileList + data
                 break
-        file.close()
+        fileListArray = fileList.split("::")
+        fileListArray.pop(len(fileListArray)-1)
+        return fileListArray
 
     #callback function of type function(int, int)
     def put(self, localpath, remotepath, callback=None):
         file_size = os.stat(localpath).st_size
         
         self.transport.send('putting::' + remotepath)
-
 
         readByte = open(localpath, "rb")
         data = readByte.read()
@@ -148,7 +151,9 @@ class Client:
         self.transport.send(data)
 
     def get(self, remotepath, localpath):
-        self.transport.send('getting::' + remotepath)
+        print remotepath
+        print localpath
+        self.transport.send('getting::' + remotepath + "::" + localpath)
 
         file = open(localpath, 'wb')
         
@@ -163,74 +168,4 @@ class Client:
                 break
         file.close()
         
-        #self.storedFiles.append(remotepath)
-        
-    def listen(self):
-        commands = []
-        bytes = ""
-        while 1:
-            bytes += self.transport.recv(1024)
-            commands.extend(bytes.split('::'))
-            
-            if((not bytes.endswith('::')) and len(commands) > 0):
-                bytes = commands.pop()
-                
-            if(len(commands) > 0):
-                print(commands[0])
-                
-                if(commands[0] == 'send file list'):
-                    self.sendFileList()
-                    commands.pop(0)
-                    
-                if(commands[0] == 'file list' and len(commands) > 1 and len(commands) > commands[1] + 1):
-                    commands.pop(0)
-                    self.storedFiles = []
-                    for i in range(int(commands[0])):
-                        commands.pop(0)
-                        self.storedFiles.append(commands[0])
-                        
-                if(commands[0] == 'getting'):
-                    if(len(commands) > 1):
-                        path = os.path.join(self.homedir, commands[1])
-                        file = open(path, 'rb')
-                        self.transport.send('putting::' + commands[1] + '::' + os.stat(path).st_size + '::')
-                        buffer = file.read(1024)
-                        while(len(buffer) != 0):
-                            self.transport.send(buffer)
-                            buffer = file.read(1024)
-                        file.close()
-                        commands.pop(0)
-                        commands.pop(0)
-                
-                if(commands[0] == 'putting'):
-                    if(len(commands) > 2):
-                        commands.pop(0)
-                        path = os.path.join(self.homedir, commands.pop(0))
-                        file_size = commands.pop(0)
-                        size = 0
-                        file = open(path, 'wb')
-                        if(len(commands) > 0):
-                            buffer = commands.pop(0)
-                        else:
-                            buffer = bytes
-                        file.write(buffer)
-                        size += len(buffer)
-                        while(file_size - size > 1024):
-                                buffer = self.transport.recv(1024)
-                                file.write(buffer)
-                        buffer = self.transport.recv(file_size - size)
-                        file.write(buffer)
-
-
-client = Client()
-client.loadConfig()
-client.promptForConfig()
-client.saveConfig()
-client.connect()
-client.register(client.hostname, client.accountName, client.accountPass)
-client.put('folder.ico', 'folder1.ico')
-time.sleep(2)
-client.get('folder1.ico', 'folder2.ico')
-#time.sleep(5)
-#client.get('folder.ico', 'folder.ico')
-#client.listen()
+        self.storedFiles.append(remotepath)

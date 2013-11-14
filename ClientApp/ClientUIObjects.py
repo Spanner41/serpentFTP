@@ -5,11 +5,12 @@ Client UI Objects
 '''
 from ClientObjects import Connection
 from ClientObjects import Singleton
+from ClientExample import Client
 from Tkinter import *
 import ttk
 import glob
 import os
-
+import time
 
 class StatusBar(Frame):
 
@@ -84,7 +85,6 @@ class ConnectDialog(Toplevel):
 
         box.pack()
 
-    #
     # standard button semantics
     def ok(self, event=None):
         if not self.validate():
@@ -110,10 +110,13 @@ class ConnectDialog(Toplevel):
             usernamveValue = self.usernameEntry.get()
             passwordValue = self.passwordEntry.get()
             
-            server = Singleton(Connection)
-            server.setConnectionParameters(hostname=hostValue,username=usernamveValue,password=passwordValue)
-            server.connect()
-            self.result = server
+            client = Singleton(Client)
+            client.loadConfig()
+            client.promptForConfig()
+            client.saveConfig()
+            client.connect()
+            client.register(hostValue, client.accountName, client.accountPass)
+            time.sleep(1)
             return 1
         except Exception:
             print "Connection Failed: Unable to connect, please try again"
@@ -133,8 +136,8 @@ class TreeView(Frame):
         self.mouseFocusFlagServer = False
 
         self.connectType = connectType
-        if self.connectType == "Server":
-            self.serverConnection = Singleton(Connection)
+        #if self.connectType == "Server":
+        self.serverConnection = Singleton(Client)
 
         Frame.__init__(self, master)
 
@@ -158,12 +161,7 @@ class TreeView(Frame):
         tree.bind("<ButtonPress-1>", self.bDown)
         tree.bind("<ButtonRelease-1>", self.bUp)
         tree.bind("<Leave>", self.mouseLoseFocus)
-        #tree.bind("<Shift-ButtonPress-1>",bDown_Shift, add='+')
-        #tree.bind("<Shift-ButtonRelease-1>",bUp_Shift, add='+')
-        # see http://effbot.org/tkinterbook/tkinter-events-and-bindings.htm for bindings
 
-        # Arrange the tree and its scrollbars in the toplevel
-        #hsb.pack(side=BOTTOM, fill=X) #TODO
         tree.pack(side=LEFT, fill=BOTH)
         vsb.pack(side=LEFT, fill=BOTH)
         
@@ -195,7 +193,7 @@ class TreeView(Frame):
                     size = os.stat(p).st_size
                     tree.set(id, "size", "%d bytes" % size)
         elif self.connectType == "Server":
-            for p in special_dirs + self.serverConnection.getListDir():
+            for p in special_dirs + self.serverConnection.getFileList():# + self.serverConnection.getListDir():
                 ptype = None
                 p = os.path.join(path, p).replace('\\', '/')
                 if os.path.isdir(p): ptype = "directory"
@@ -213,35 +211,30 @@ class TreeView(Frame):
                     tree.set(id, "size", "%d bytes" % size)
     
     def treePut(self):
-        self.serverConnection = Singleton(Connection)
+
         clientPath = self.listener.getClientPath()
         if(clientPath is None):
             return
 
-        if self.serverConnection.getCwd() != "/":
-            serverPath = self.serverConnection.getCwd() + '/' + os.path.basename(clientPath)
-        else:
-            serverPath = self.serverConnection.getCwd() + os.path.basename(clientPath)
-        self.serverConnection.put(clientPath, serverPath)
+        self.serverConnection.put(clientPath, os.path.basename(clientPath))
+
 
     def treeGet(self):
-        self.serverConnection = Singleton(Connection)
-        serverPath = self.listener.getServerPath()
-        if(serverPath is None):
-            return
-        
+        serverPath = '/' + os.path.basename(self.listener.getServerPath())
+
         if os.getcwd() != "C:\\":
             clientPath = os.getcwd() + '\\' + os.path.basename(self.listener.getServerPath())
         else:
             clientPath = os.getcwd() + os.path.basename(self.listener.getServerPath())
         self.serverConnection.get(serverPath, clientPath)
+        #'''
 
     def populate_roots(self, tree):
         if self.connectType == None:
             dir = os.path.abspath('.').replace('\\', '/')
             node = tree.insert('', 'end', text=dir, values=[dir, "directory"])
         elif self.connectType == "Server":
-            dir = self.serverConnection.getCwd()
+            dir = "/"#self.serverConnection.getCwd()
             node = tree.insert('', 'end', text=dir, values=[dir, "directory"])
         self.populate_tree(tree, node)
     
@@ -292,10 +285,10 @@ class TreeView(Frame):
                     tree.delete(tree.get_children(''))
                     self.populate_roots(tree)
             elif self.connectType == "Server":
-                path = tree.set(node, "fullpath")
+                '''path = tree.set(node, "fullpath")
                 self.serverConnection.chDir(path)
                 tree.delete(tree.get_children(''))
-                self.populate_roots(tree)
+                self.populate_roots(tree)'''
     
     def autoscroll(self, sbar, first, last):
         """Hide and show scrollbar as needed."""

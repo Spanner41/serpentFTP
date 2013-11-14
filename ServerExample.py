@@ -5,12 +5,12 @@ Tracker Server Example App
 '''
 
 import traceback
-
 import paramiko
-
 import os
+import re
+import socket
 
-import time
+from multiprocessing import Process
 
 def Singleton(singleClass):
     if not singleClass._instance:
@@ -51,10 +51,11 @@ class Connection:
     sftp= None #sftp client
     hostkeytype = None
     hostkey = None
-    storedFiles = []
     _instance = None
 
-    def __init__(self, hostname=None, username=None, password=None, size=1073741824):
+    def __init__(self, hostname=None, username=None, password=None, size=100000):
+        
+        self.storedFiles = ["test1.txt", "test2.txt", "test3.txt"]
         self.hostname = hostname
         self.username = username
         self.password = password
@@ -68,6 +69,9 @@ class Connection:
         self.mouseFocusFlagServer = False
         self.bUpFlagServer = False
     
+    def getStoredFilesArray(self):
+        return self.storedFiles
+    
     def getStoredFilesList(self, fileNameStored):
         for fileName in self.storedFiles:
             if fileName == fileNameStored:
@@ -76,8 +80,8 @@ class Connection:
                 return None
             
     def loadFileList(self):
-        if(os.path.isfile(self.username + 'files.txt')):
-            config = open(self.username + 'files.txt', 'r')
+        if(os.path.isfile(self.username + '_' + self.hostname + '_fileList.txt')):
+            config = open(self.username + '_' + self.hostname + '_fileList.txt', 'r')
             
             while 1:
                 lines = config.readlines(5)
@@ -90,10 +94,10 @@ class Connection:
                         for word in words[2:]:
                             self.storedFiles.append(word)
                             self.storedFiles = list(set(self.storedFiles))
-                            
-                    
+            config.close()
+
     def saveFileList(self):
-        config = open(self.username + 'files.txt', 'wb')
+        config = open(self.username + '_' + self.hostname + '_fileList.txt', 'wb')
         
         if self.storedFiles is not []:
             config.write('storedFiles ' + str(len(self.storedFiles)))
@@ -115,7 +119,6 @@ class Connection:
         self.password = password
 
     def getTransport(self):
-        
         if self.transport is None:
             self.transport = paramiko.Transport((self.hostname, 22))
         return self.transport
@@ -182,65 +185,76 @@ class Connection:
 
 tracker = Singleton(Tracker)
 
-
-
-import socket
-
-hostname = '127.0.0.1'                 # Symbolic name meaning the local host
-port = 50001                           # Arbitrary non-privileged port
-s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s1.bind((hostname, port))
-s1.listen(1)
-connection, address = s1.accept()
-print 'Connected by', address
-
-while True:
-    data = connection.recv(1024)
-    if not data: continue
-    parsedData = data.split('::');
-    if parsedData[0] == "register":
-        tracker.addStorageLocation(parsedData[1], parsedData[2], parsedData[3])
-        server = tracker.getAvailableStorageLocation()
-        server.connect()
-        break
-while True:
-    data = connection.recv(1024)
-    if not data: continue
-    parsedData = data.split('::')
-
-    if parsedData[0] == "putting":
-        
-        file = open(parsedData[1], "wb")
+def handler():
+    hostname = '' # local host 
+    port = 9007 # Arbitrary non-privileged port
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind((hostname, port))
+    server.listen(1)
+    connection, addr = server.accept()
+    while True:
         data = connection.recv(1024)
-        while len(data) != 0:
-            file.write(data)
+        if not data: continue
+        parsedData = data.split('::')
+
+        if parsedData[0] == "register":
+            print "got here"
+            tracker.addStorageLocation(parsedData[1], parsedData[2], parsedData[3])
+            server = tracker.getAvailableStorageLocation()
+            server.connect()
+            server.loadFileList()
+            break
+
+    while True:
+        data = connection.recv(1024)
+        if not data: continue
+        parsedData = data.split('::')
+    
+        if parsedData[0] == "putting":
+            file = open(parsedData[1], "wb")
             data = connection.recv(1024)
-            if (len(data) < 1024):
+            while len(data) != 0:
                 file.write(data)
-                break
-        file.close()
+                data = connection.recv(1024)
+                if (len(data) < 128):
+                    file.write(data)
+                    break
+            file.close()
 
-        server.put(parsedData[1], "/" + parsedData[1])
+            server.put(parsedData[1], "/" + parsedData[1])
 
-    elif parsedData[0] == "getting":
-        server.get("/" + parsedData[1], parsedData[1])
+            #Need to implement something to switch if maximum hard drive
+            # space is used
+            
+            #NEW
+            #if (server.getRemainingSize() <= 0):
+                #server = tracker.getAvailableStorageLocation()
+                #server.connect()
+                #server.loadFileList()
+            #NEW
 
-        readByte = open(parsedData[1], "rb")
-        data = readByte.read()
-        readByte.close()
+            server.saveFileList()
+        elif parsedData[0] == "getting":
+            server.get(parsedData[1], parsedData[2])
 
-        connection.send(data)
+            readByte = open(parsedData[1], "rb")
+            data = readByte.read()
+            readByte.close()
 
+            connection.send(data)
 
-connection.close()
+            server.loadFileList()
+        elif parsedData[0] == "sendfilelist":
+            print "did send file list"
+            lines = server.getStoredFilesArray()
+            for line in lines:
+                if isinstance(line, str):
+                    if line != "":
+                        connection.send(line + "::")
+    connection.close()
 
-#tracker.addStorageLocation("127.0.0.1", "user", "pass")
-
-#server = tracker.getAvailableStorageLocation()
-#server.connect()
-# Send a file to the server
-#server.put("folder.ico", "/folder.ico")
-
-# Retrieve the file from the server
-#if server.getStoredFilesList("folder.ico") != None:
-#    server.get("/folder.ico", "folder.ico")
+if __name__ == '__main__':
+    for i in range(1,3): # Create 2 processes
+        p = Process(target=handler, args=())
+        p.start()
