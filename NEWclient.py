@@ -125,6 +125,7 @@ class Client():
         
 client = Client()
 client.loadConfig()
+client.promptForConfig()
 client.saveConfig()
 client.register()
 

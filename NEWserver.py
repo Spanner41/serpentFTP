@@ -97,7 +97,7 @@ class Server():
                 connection.send(data)
             
             if(parsedData[0] == 'take'):
-                f = open('/1' + parsedData[1], 'wb')
+                f = open('1' + parsedData[1], 'wb')
         
                 #receive the file
                 data = connection.recv(1024)

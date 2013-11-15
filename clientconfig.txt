@@ -1,0 +1,5 @@
+hostname 127.0.0.1
+port 6001
+accountName Wrench
+homedir C:\Users\Wrench\Documents\Aptana
+storedFiles 0
