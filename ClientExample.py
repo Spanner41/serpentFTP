@@ -111,7 +111,6 @@ class Client:
     #register user with server
     def register(self, hostname, accountName, accountPass):
         self.transport.send('register::' + hostname + "::" + accountName + '::' + accountPass )
-        #time.sleep(1)
 
     #send file list
     def sendFileList(self):
@@ -129,11 +128,15 @@ class Client:
         fileListArray = []
         data = self.transport.recv(1024)
         while len(data) != 0:
+            if data.find("MARKERFILELIST") == -1:
+                pass
+            else:
+                fileList = fileList + data
+                fileList.replace("MARKERFILELIST", "")
+                break
             fileList = fileList + data
             data = self.transport.recv(1024)
-            if (len(data) < 1024):
-                fileList = fileList + data
-                break
+
         fileListArray = fileList.split("::")
         fileListArray.pop(len(fileListArray)-1)
         return fileListArray
@@ -147,12 +150,10 @@ class Client:
         readByte = open(localpath, "rb")
         data = readByte.read()
         readByte.close()
-
+        data = data + "MARKERPUT"
         self.transport.send(data)
 
     def get(self, remotepath, localpath):
-        print remotepath
-        print localpath
         self.transport.send('getting::' + remotepath + "::" + localpath)
 
         file = open(localpath, 'wb')
@@ -161,11 +162,14 @@ class Client:
         data = self.transport.recv(1024)
 
         while len(data) != 0:
-            file.write(data)
-            data = self.transport.recv(1024)
-            if (len(data) < 1024):
+            if data.find("MARKERGET") == -1:
+                pass
+            else:
+                data = data.replace("MARKERGET", "")
                 file.write(data)
                 break
+            file.write(data)
+            data = self.transport.recv(1024)
         file.close()
         
         self.storedFiles.append(remotepath)

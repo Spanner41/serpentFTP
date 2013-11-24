@@ -199,7 +199,6 @@ def handler():
         parsedData = data.split('::')
 
         if parsedData[0] == "register":
-            print "got here"
             tracker.addStorageLocation(parsedData[1], parsedData[2], parsedData[3])
             server = tracker.getAvailableStorageLocation()
             server.connect()
@@ -215,43 +214,40 @@ def handler():
             file = open(parsedData[1], "wb")
             data = connection.recv(1024)
             while len(data) != 0:
-                file.write(data)
-                data = connection.recv(1024)
-                if (len(data) < 128):
+                if data.find("MARKERPUT") == -1:
+                    pass
+                else:
+                    data = data.replace("MARKERPUT", "")
                     file.write(data)
                     break
+                file.write(data)
+                data = connection.recv(1024)
+
             file.close()
 
             server.put(parsedData[1], "/" + parsedData[1])
-
-            #Need to implement something to switch if maximum hard drive
-            # space is used
-            
-            #NEW
-            #if (server.getRemainingSize() <= 0):
-                #server = tracker.getAvailableStorageLocation()
-                #server.connect()
-                #server.loadFileList()
-            #NEW
 
             server.saveFileList()
         elif parsedData[0] == "getting":
             server.get(parsedData[1], parsedData[2])
 
-            readByte = open(parsedData[1], "rb")
+            readByte = open(parsedData[1].replace("/", ""), "rb")
             data = readByte.read()
             readByte.close()
 
+            data = data + "MARKERGET"
             connection.send(data)
 
             server.loadFileList()
         elif parsedData[0] == "sendfilelist":
-            print "did send file list"
             lines = server.getStoredFilesArray()
+            concatLine = ""
             for line in lines:
                 if isinstance(line, str):
                     if line != "":
-                        connection.send(line + "::")
+                        concatLine = concatLine + line + "::"
+            concatLine = concatLine + "MARKERFILELIST"
+            connection.sendall(concatLine)
     connection.close()
 
 if __name__ == '__main__':
